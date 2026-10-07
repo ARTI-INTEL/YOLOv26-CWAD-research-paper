@@ -1,0 +1,37 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+coverage.xml
+.ruff_cache
+*.egg-info
+dist
+build
+
+# Development
+.env
+.venv
+env/
+venv/
+ENV/
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
+*.log
+benchmarks.log
+runs/
+/weights
+/datasets
+
+# Dependencies
+node_modules/

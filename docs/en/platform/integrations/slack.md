@@ -1,0 +1,87 @@
+---
+plans: [free, pro, enterprise]
+comments: true
+description: Connect Slack to Ultralytics Platform and choose which training, auto-annotation, export, and deployment results are posted to your channel.
+keywords: Ultralytics Platform, Slack, alerts, notifications, training, auto-annotation, model export, deployment, YOLO, computer vision
+title: Slack Alerts - Ultralytics Platform
+---
+
+# Slack Integration
+
+Connect [Slack](https://slack.com) to [Ultralytics Platform](https://platform.ultralytics.com) to learn when long-running work finishes without keeping Platform open. You choose one Slack channel and the results that matter to your workspace.
+
+You do not need a Slack API key, webhook, or technical setup. Before you start, sign in to Slack and decide which channel should receive Platform alerts. If you use a team workspace in Platform, you must be a workspace admin or owner.
+
+## Connect Slack
+
+1. Open [**Settings > Integrations**](https://platform.ultralytics.com/settings?tab=integrations) and select **Slack**
+   from the integration list.
+2. Review the setup summary and click **Continue to Slack**.
+3. Choose a channel and click **Allow**. Platform requests permission to post only to that channel. If Slack shows
+   **Request approval**, send the request and ask your Slack workspace admin to approve the app.
+4. After returning to Platform, choose the alerts you want and click **Save alerts**. **Training complete**,
+   **Training failed**, **Annotation complete**, and **Annotation failed** are selected initially.
+
+![Ultralytics Platform Slack Integration Setup](https://cdn.ul.run/i/ce5e5eeb0108e7ed538b2503cd256505.avif)<!-- screenshot -->
+
+Platform posts a confirmation in the selected channel as soon as the connection succeeds, and the integration then shows which Slack workspace and channel it is connected to. Workspace admins manage the connection and alert choices for the whole workspace from the [Integrations tab](../account/settings.md#integrations-tab).
+
+!!! info "What Slack Allows"
+
+    Slack lets Platform post messages to the channel you choose. Platform cannot read your Slack messages or post to other channels through this connection.
+
+## Available Alerts
+
+| Alert                   | When it is sent                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| **Training complete**   | A model [finishes training](../train/cloud-training.md#training-job-lifecycle)     |
+| **Training failed**     | A training run stops with an error                                                 |
+| **Export complete**     | A [model export](../train/models.md#export-model) is ready                         |
+| **Export failed**       | A model export stops with an error                                                 |
+| **Annotation complete** | A dataset finishes [batch auto-annotation](../data/annotation.md#batch-annotation) |
+| **Annotation failed**   | Auto-annotation stops with an error                                                |
+| **Deployment ready**    | A [deployment](../deploy/endpoints.md#deployment-lifecycle) is ready               |
+| **Deployment failed**   | A deployment fails to start                                                        |
+
+Each message says what finished and links straight to the related model, dataset, or deployment in Platform. Training alerts add the dataset name, the model's primary metric, how long the run took, and what it cost; export alerts add the format, file size, and duration; auto-annotation alerts add the number of images processed and annotations created; deployment alerts add the region and CPU and memory size. Failed-job alerts include a short error summary when one is available, as an inline note or a code block for longer messages. Platform posts alerts in the background and retries automatically if Slack is briefly unavailable or rate-limits the channel, so Slack delivery never delays or changes the result of the training, auto-annotation, export, or deployment. Review the current result from the model's [training](../train/cloud-training.md#monitor-training) or [export](../train/models.md#export-model) page, or from the [Deployments tab](../deploy/index.md#deployments-tab).
+
+## Agents Workflow Messages
+
+Use a **Slack** block in [Agents](../agents.md#send-conditional-slack-alerts) to send a message when a workflow condition matches. It uses the same connected channel. Configure the message in the block and include `{output}` for the upstream result. These messages are separate from the job notification choices above.
+
+## Change or Disconnect Slack
+
+To change which results are posted, check or uncheck alerts and click **Save alerts**. At least one alert must remain selected.
+
+To use a different channel, click **Change channel**, choose the new channel in Slack, and click **Allow**. Your alert selection is kept, and Platform posts a confirmation in the new channel.
+
+To stop all Slack alerts, click **Disconnect**. Disconnecting takes effect immediately and does not affect Platform jobs or resources. To also remove the app from your Slack workspace, remove it from Slack's app management settings.
+
+## Troubleshooting
+
+- **The Slack integration says a workspace admin can manage it:** ask a Platform workspace admin or owner to complete the
+  connection.
+- **Slack shows Request approval instead of Allow:** send the request and ask your Slack workspace admin to approve the app. You do not need to create an API key or webhook.
+- **Your Slack workspace or channel is missing:** confirm that you are signed in to the correct Slack workspace and that you can add apps to the channel.
+- **The integration shows Slack stopped accepting alerts:** Slack rejected the last alert because the app was removed, the channel was archived or deleted, or a Slack admin restricted posting. Click **Change channel** to reconnect Slack and choose an active channel; the warning clears when you reconnect or the next alert is delivered.
+- **A job finished without a Slack message:** check the selected alerts in **Settings > Integrations**, then open the related [model](../train/models.md) or [deployment](../deploy/index.md) in Platform. Slack alerts are informational and never control job processing.
+
+Return to the [Platform integrations overview](index.md) to connect data, storage, or On Premise services.
+
+## FAQ
+
+### Do I need a Slack API key or webhook?
+
+No. Connecting Slack is an OAuth flow: click **Continue to Slack**, choose a channel, and click **Allow**. Platform only receives permission to post to that one channel.
+
+### Can I post alerts to more than one channel?
+
+Each workspace connects to a single channel. To switch channels, click **Change channel** and choose the new channel in Slack; your alert selection is kept.
+
+### Who can connect or change the Slack integration?
+
+In a team workspace, the admin or owner [role](../account/teams.md#roles-and-permissions) manages the connection and the alert selection for everyone. Alerts are available on all plans.
+
+### Why did a job finish without a Slack message?
+
+Check that the matching alert is selected in **Settings > Integrations**. If the integration shows **Slack stopped accepting alerts**, click **Change channel** to reconnect Slack. Alerts are informational only and never affect the training, export, or deployment itself.
