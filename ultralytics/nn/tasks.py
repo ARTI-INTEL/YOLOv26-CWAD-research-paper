@@ -48,6 +48,7 @@ from ultralytics.nn.modules import (
     Conv,
     Conv2,
     ConvTranspose,
+    DKSCDown,
     Depth,
     Detect,
     DWConv,
@@ -59,6 +60,7 @@ from ultralytics.nn.modules import (
     HGStem,
     ImagePoolingAttn,
     Index,
+    LightSDI,
     LRPCHead,
     Pose,
     Pose26,
@@ -2103,6 +2105,7 @@ def parse_model(d, ch, verbose=True):
             SCDown,
             C2fCIB,
             A2C2f,
+            DKSCDown,
         }
     )
     repeat_modules = frozenset(  # modules with 'repeat' arguments
@@ -2182,6 +2185,10 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
+        elif m is LightSDI:  # multi-input fusion, output width equals Concat's summed input width
+            c1 = [ch[x] for x in f]
+            c2 = sum(c1)
+            args = [c1, c2]
         elif m in frozenset(
             {
                 Detect,

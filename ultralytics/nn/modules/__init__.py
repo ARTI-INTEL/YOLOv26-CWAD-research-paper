@@ -75,6 +75,7 @@ from .conv import (
     RepConv,
     SpatialAttention,
 )
+from .cwad import DKSCDown, LightSDI
 from .head import (
     OBB,
     OBB26,
@@ -117,6 +118,7 @@ __all__ = (
     "CBAM",
     "CIB",
     "DFL",
+    "DKSCDown",
     "ELAN1",
     "MLP",
     "OBB",
@@ -164,6 +166,7 @@ __all__ = (
     "LRPCHead",
     "LayerNorm2d",
     "LightConv",
+    "LightSDI",
     "MLPBlock",
     "MSDeformAttn",
     "MaxSigmoidAttnBlock",

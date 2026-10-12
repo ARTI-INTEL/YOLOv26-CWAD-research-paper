@@ -14,8 +14,9 @@ from ultralytics.utils.metrics import CITYSCAPES_WEIGHT, OKS_SIGMA, RLE_WEIGHT
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
 from ultralytics.utils.torch_utils import autocast
+from ultralytics.utils.wise_iou import IouLoss
 
-from .metrics import bbox_iou, probiou
+from .metrics import probiou
 from .tal import bbox2dist, rbox2dist
 
 
@@ -112,9 +113,13 @@ class BboxLoss(nn.Module):
     """Criterion class for computing training losses for bounding boxes."""
 
     def __init__(self, reg_max: int = 16):
-        """Initialize the BboxLoss module; DFL is used when reg_max > 1, otherwise an L1 distance loss."""
+        """Initialize the BboxLoss module; DFL is used when reg_max > 1, otherwise an L1 distance loss.
+
+        The box regression term is the Wise-IoU v2 loss (CWAD-YOLO) instead of the default CIoU loss.
+        """
         super().__init__()
         self.dfl_loss = DFLoss(reg_max) if reg_max > 1 else None
+        self.iou_loss = IouLoss()
 
     def forward(
         self,
@@ -128,11 +133,11 @@ class BboxLoss(nn.Module):
         imgsz: torch.Tensor,
         stride: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute CIoU and DFL (or L1 when reg_max <= 1) losses for bounding boxes."""
+        """Compute Wise-IoU v2 and DFL (or L1 when reg_max <= 1) losses for bounding boxes."""
         fg_mask = fg_mask.nonzero(as_tuple=True)  # index once; long-index gathers and their backward do not sync
         weight = target_scores[fg_mask].sum(-1, keepdim=True)
-        iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=True)
-        loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        loss_iou = (self.iou_loss(pred_bboxes[fg_mask], target_bboxes[fg_mask]).unsqueeze(-1) * weight).sum()
+        loss_iou = loss_iou / target_scores_sum
 
         # DFL loss
         if self.dfl_loss:
