@@ -19,10 +19,10 @@ __all__ = ("DKSCDown", "LightSDI")
 class LightSDI(nn.Module):
     """Light Semantics and Detail Infusion (LightSDI) multi-scale feature fusion module.
 
-    Every incoming feature is resized to the anchor spatial size (bilinear interpolation for smaller features,
-    adaptive average pooling for larger ones), refined by a depthwise 3x3 convolution followed by a pointwise 1x1
-    convolution that aligns it to the output width, and all refined features are fused by element-wise (Hadamard)
-    multiplication instead of concatenation.
+    Every incoming feature is resized to the anchor spatial size (bilinear interpolation for smaller features, adaptive
+    average pooling for larger ones), refined by a depthwise 3x3 convolution followed by a pointwise 1x1 convolution
+    that aligns it to the output width, and all refined features are fused by element-wise (Hadamard) multiplication
+    instead of concatenation.
     """
 
     def __init__(self, c1, c2):
@@ -67,10 +67,9 @@ class LightSDI(nn.Module):
 class DKSCDown(nn.Module):
     """Dual-Kernel Scale-Consistent Downsample (DK_SCDown) from the CWAD-YOLO paper.
 
-    A 1x1 convolution reduces the input to c2 channels, which are then processed by two parallel stride-2
-    depthwise convolutions (3x3 for local detail, 5x5 for wider context). Global average pooling over the reduced
-    features feeds a linear layer whose 2-way Softmax produces per-sample dynamic branch weights, and the output
-    is their weighted sum.
+    A 1x1 convolution reduces the input to c2 channels, which are then processed by two parallel stride-2 depthwise
+    convolutions (3x3 for local detail, 5x5 for wider context). Global average pooling over the reduced features feeds a
+    linear layer whose 2-way Softmax produces per-sample dynamic branch weights, and the output is their weighted sum.
     """
 
     def __init__(self, c1, c2):
