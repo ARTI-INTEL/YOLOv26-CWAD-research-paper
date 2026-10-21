@@ -17,9 +17,9 @@ from torch import nn
 class IouLoss(nn.Module):
     """Wise-IoU v2 IoU regression loss with dynamic focusing mechanism.
 
-    The per-box IoU loss (``1 - IoU``) is scaled by ``exp(l2_center / l2_box.detach())``, an exponential distance
-    term between the boxes' centers relative to their smallest enclosing box, then rescaled by the focusing factor
-    derived from ``iou_mean``, an exponential moving average of the per-box IoU loss updated while training.
+    The per-box IoU loss (``1 - IoU``) is scaled by ``exp(l2_center / l2_box.detach())``, an exponential distance term
+    between the boxes' centers relative to their smallest enclosing box, then rescaled by the focusing factor derived
+    from ``iou_mean``, an exponential moving average of the per-box IoU loss updated while training.
 
     Args:
         monotonous (bool | None): Focusing mechanism variant: False for the non-monotonic Wise-IoU v2 mechanism
