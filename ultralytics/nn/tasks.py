@@ -48,9 +48,10 @@ from ultralytics.nn.modules import (
     Conv,
     Conv2,
     ConvTranspose,
-    DKSCDown,
+    DANNDetect,
     Depth,
     Detect,
+    DKSCDown,
     DWConv,
     DWConvTranspose2d,
     Focus,
@@ -94,6 +95,7 @@ from ultralytics.utils import (
 )
 from ultralytics.utils.checks import REMOTE_FILE_PREFIXES, check_file, check_requirements, check_suffix, check_yaml
 from ultralytics.utils.loss import (
+    DANNE2ELoss,
     DepthLoss26,
     E2ELoss,
     PoseLoss26,
@@ -619,6 +621,8 @@ class DetectionModel(BaseModel):
 
     def init_criterion(self):
         """Initialize the loss criterion for the DetectionModel."""
+        if getattr(self.model[-1], "n_domains", 0):  # DANN head: add the domain-adversarial term
+            return DANNE2ELoss(self, weight=self.model[-1].domain_weight)
         return E2ELoss(self) if getattr(self.model[-1], "one2one_cv2", None) is not None else v8DetectionLoss(self)
 
 
@@ -2192,6 +2196,7 @@ def parse_model(d, ch, verbose=True):
         elif m in frozenset(
             {
                 Detect,
+                DANNDetect,
                 WorldDetect,
                 YOLOEDetect,
                 Segment,
@@ -2207,7 +2212,19 @@ def parse_model(d, ch, verbose=True):
             args.extend([reg_max, end2end, [ch[x] for x in f]])
             if m is Segment or m is YOLOESegment or m is Segment26 or m is YOLOESegment26:
                 args[2] = make_divisible(min(args[2], max_channels) * width, 8)
-            if m in {Detect, YOLOEDetect, Segment, Segment26, YOLOESegment, YOLOESegment26, Pose, Pose26, OBB, OBB26}:
+            if m in {
+                Detect,
+                DANNDetect,
+                YOLOEDetect,
+                Segment,
+                Segment26,
+                YOLOESegment,
+                YOLOESegment26,
+                Pose,
+                Pose26,
+                OBB,
+                OBB26,
+            }:
                 m.legacy = legacy
         elif m is Depth:
             args = [*args[:1], [ch[x] for x in f]]  # c_mid, ch tuple; drops the legacy mode arg old checkpoints store
