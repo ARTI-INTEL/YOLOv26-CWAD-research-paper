@@ -1,22 +1,24 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
-# Ultralytics pro-YOLO26-CWAD object detection model with P2/4 - P5/32 outputs (4-scale head).
-# Same architecture as yolo26-cwad (DKSCDown downsampling, LightSDI Hadamard fusion, extra P2 scale, Wise-IoU v2 box
-# regression) with two cross-domain frameworks added:
-#   - DANN: the Detect head becomes DANNDetect, adding a gradient-reversal domain classifier on the deepest detection
-#     feature. Domain ids come from the dataset YAML, i.e.
-#       dann_domains: {source: datasets/soda10m/images/train, target: datasets/dawn/images/train}
-#     and the adversarial cross-entropy is added to the detection loss by ultralytics.utils.loss.DANNE2ELoss.
-#   - TTA: test-time adaptation at inference, ultralytics.utils.tta.TestTimeAdapter (BatchNorm statistics and optional
-#     entropy minimization on the unlabeled target batch), used through ultralytics.utils.tta.TestTimeAdaptivePredictor.
-#   - Scale selection: YOLO('pro-yolo26s-cwad.yaml') builds the 's' scale of this file.
-# YOLO26 engine specifics retained: end-to-end NMS-free head, direct (X, Y, W, H) regression, reg_max=1 (no DFL).
+# CWAD-YOLO26-plus: the CWAD-YOLO26 detection network plus a DANN weather-domain branch.
+#   - Architecture is identical to ultralytics/cfg/models/26/yolo26-cwad.yaml (backbone, LightSDI neck, 4-scale
+#     end-to-end head); the `dann` keys below only configure the training-time domain-adversarial branch.
+#   - DANN: the detection head's multi-scale features are pooled, passed through a gradient-reversal layer and a small
+#     classifier that predicts the DAWN weather condition. The reversed gradient drives the backbone toward
+#     weather-invariant features. Train with ultralytics/models/yolo/detect/cwad_plus.py (CWADPlusTrainer), which is the
+#     only entry point that supplies the per-image weather labels; `yolo detect train` would ignore the keys.
+#   - TTA: test-time adaptation to an unseen target domain (ACDC) is applied at evaluation time by
+#     ultralytics/utils/tta.py, not during training.
+# Build the 's' scale with: model=yolo26s-cwad-plus.yaml (scale is parsed from the filename).
 
 # Parameters
 nc: 80 # number of classes
 end2end: True # whether to use end-to-end mode
 reg_max: 1 # DFL bins
-scales: # model compound scaling constants, i.e. 'model=pro-yolo26s-cwad.yaml' will call pro-yolo26-cwad.yaml with scale 's'
+dann: True # enable the DANN domain-adversarial branch during training
+dann_domains: 4 # number of DAWN weather domains (fog, rain, sand, snow), read from datasets/dawn/conditions.csv
+dann_lambda: 0.1 # peak weight of the domain loss, ramped from 0 over the run
+scales: # model compound scaling constants, i.e. 'model=yolo26s-cwad-plus.yaml' will call yolo26-cwad-plus.yaml with scale 's'
   # [depth, width, max_channels]
   n: [0.50, 0.25, 1024]
   s: [0.50, 0.50, 1024]
@@ -66,5 +68,4 @@ head:
   - [[-1, 10], 1, LightSDI, []] # 27 fuse backbone P5
   - [-1, 1, C3k2, [1024, True, 0.5, True]] # 28 (P5/32-large)
 
-  # Detect(P2, P3, P4, P5): nc, number of DANN domains
-  - [[19, 22, 25, 28], 1, DANNDetect, [nc, 2]]
+  - [[19, 22, 25, 28], 1, Detect, [nc]] # Detect(P2, P3, P4, P5)

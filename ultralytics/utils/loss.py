@@ -10,7 +10,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from ultralytics.utils import LOGGER
 from ultralytics.utils.metrics import CITYSCAPES_WEIGHT, OKS_SIGMA, RLE_WEIGHT
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import RotatedTaskAlignedAssigner, TaskAlignedAssigner, dist2bbox, dist2rbox, make_anchors
@@ -1358,44 +1357,6 @@ class E2ELoss:
     def decay(self, x) -> float:
         """Calculate the decayed weight for one-to-many loss based on the current update step."""
         return max(1 - x / max(self.one2one.hyp.epochs - 1, 1), 0) * (self.o2m_copy - self.final_o2m) + self.final_o2m
-
-
-class DANNE2ELoss(E2ELoss):
-    """End-to-end detection criterion with an auxiliary domain-adversarial term (DANN).
-
-    The domain classifier lives in the `DANNDetect` head and is fed through a gradient reversal layer, so minimizing the
-    domain cross-entropy simultaneously maximizes it with respect to the features it sees. Domain ids come from the
-    `dann_domains` mapping in the dataset YAML, tagged per image by the dataloader.
-
-    Args:
-        model (torch.nn.Module): Model whose head and hyperparameters drive the loss.
-        loss_fn (type): Detection loss class used for the one-to-many and one-to-one branches.
-        weight (float): Weight of the domain loss relative to the detection loss.
-    """
-
-    def __init__(self, model: torch.nn.Module, loss_fn=v8DetectionLoss, weight: float = 0.1):
-        """Initialize the criterion and the domain loss weight."""
-        super().__init__(model, loss_fn)
-        self.weight = weight
-        self._warned = False
-
-    def __call__(self, preds: Any, batch: dict[str, torch.Tensor]) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        """Add the weighted domain cross-entropy to the end-to-end detection loss."""
-        preds = preds[1] if isinstance(preds, tuple) else preds
-        logits = preds.get("domain") if isinstance(preds, dict) else None
-        loss, loss_items = super().__call__(preds, batch)
-        if logits is None:  # inference-mode or a head without the adversarial branch
-            return loss, loss_items
-        if "domain" not in batch:
-            if not self._warned:
-                LOGGER.warning(
-                    "DANN head has no domain labels; add 'dann_domains' to the dataset YAML. Domain loss is 0."
-                )
-                self._warned = True
-            return loss, loss_items
-        domains = torch.as_tensor(batch["domain"], device=logits.device)
-        domain_loss = F.cross_entropy(logits, domains) * self.weight
-        return loss + domain_loss * logits.shape[0], {**loss_items, "domain_loss": domain_loss.detach()}
 
 
 class TVPDetectLoss:

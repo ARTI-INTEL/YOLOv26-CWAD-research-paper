@@ -114,38 +114,6 @@ class YOLODataset(BaseDataset):
                 "keypoints, number of dims (2 for x,y or 3 for x,y,visible)], i.e. 'kpt_shape: [17, 3]'"
             )
         super().__init__(*args, channels=self.data.get("channels", 3), **kwargs)
-        self.domains = self._get_domains()
-
-    def _get_domains(self) -> list[int]:
-        """Return the domain id of every image from the dataset's `dann_domains` mapping, empty when not configured.
-
-        The mapping lists one path prefix per domain, in domain-id order, i.e.
-        `dann_domains: {source: datasets/soda10m/images/train, target: datasets/dawn/images/train}`. Images matching no
-        prefix fall back to domain 0.
-        """
-        roots = self.data.get("dann_domains") or {}
-        if isinstance(roots, dict):
-            roots = roots.values()
-        prefixes = []
-        for i, paths in enumerate(roots):
-            for p in (paths,) if isinstance(paths, (str, Path)) else paths:
-                prefixes.append((Path(p).absolute().as_posix().lower(), i))
-        if not prefixes:
-            return []
-        domains = []
-        for im_file in self.im_files:
-            path = Path(im_file).absolute().as_posix().lower()
-            matches = [(len(p), i) for p, i in prefixes if path.startswith(p)]  # longest prefix wins
-            domains.append(max(matches)[1] if matches else 0)
-        LOGGER.info(f"{self.prefix}DANN domains: {np.bincount(domains).tolist()}")
-        return domains
-
-    def __getitem__(self, index: int) -> dict[str, Any]:
-        """Return the transformed sample, tagged with its domain id when `dann_domains` is configured."""
-        label = super().__getitem__(index)
-        if self.domains:
-            label["domain"] = self.domains[index]
-        return label
 
     def cache_labels(self, path: Path = Path("./labels.cache")) -> dict:
         """Cache dataset labels, check images and read shapes.

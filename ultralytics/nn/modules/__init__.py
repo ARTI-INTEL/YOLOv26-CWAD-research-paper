@@ -75,8 +75,7 @@ from .conv import (
     RepConv,
     SpatialAttention,
 )
-from .cwad import DKSCDown, LightSDI
-from .dann import DANNDetect, DomainDiscriminator, GradientReversal
+from .cwad import DKSCDown, DomainClassifier, GradientReversal, LightSDI
 from .head import (
     OBB,
     OBB26,
@@ -119,6 +118,8 @@ __all__ = (
     "CBAM",
     "CIB",
     "DFL",
+    "DKSCDown",
+    "DomainClassifier",
     "ELAN1",
     "MLP",
     "OBB",
@@ -150,15 +151,12 @@ __all__ = (
     "Conv",
     "Conv2",
     "ConvTranspose",
-    "DANNDetect",
-    "DKSCDown",
     "DWConv",
     "DWConvTranspose2d",
     "DeformableTransformerDecoder",
     "DeformableTransformerDecoderLayer",
     "Depth",
     "Detect",
-    "DomainDiscriminator",
     "Focus",
     "GhostBottleneck",
     "GhostConv",

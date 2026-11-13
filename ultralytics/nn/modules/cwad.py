@@ -4,7 +4,8 @@
 Phase 2 adds LightSDI (Light Semantics and Detail Infusion), the multi-scale feature fusion module from the
 CWAD-YOLO paper that replaces the neck's Concat layers with depthwise/pointwise refinement and Hadamard product
 fusion. Phase 3 adds DKSCDown, the dual-kernel (3x3/5x5) depthwise stride-2 downsampler with GAP+Softmax dynamic
-branch weighting that replaces the backbone/neck's stride-2 Conv layers.
+branch weighting that replaces the backbone/neck's stride-2 Conv layers. Phase 4 adds the DANN building blocks,
+GradientReversal and DomainClassifier, which let CWAD-YOLO26-plus learn weather-invariant features adversarially.
 """
 
 import torch
@@ -13,7 +14,7 @@ from torch import nn
 
 from .conv import Conv
 
-__all__ = ("DKSCDown", "LightSDI")
+__all__ = ("DKSCDown", "DomainClassifier", "GradientReversal", "LightSDI")
 
 
 class LightSDI(nn.Module):
@@ -100,3 +101,87 @@ class DKSCDown(nn.Module):
         w = torch.softmax(self.gate(self.pool(x).flatten(1)), dim=1)  # (B, 2)
         w3, w5 = w[:, 0, None, None, None], w[:, 1, None, None, None]
         return w3 * self.branch3(x) + w5 * self.branch5(x)
+
+
+class _GradientReversal(torch.autograd.Function):
+    """Identity in the forward pass, gradient reversed and scaled by alpha in the backward pass."""
+
+    @staticmethod
+    def forward(ctx, x, alpha):
+        """Return x unchanged and remember the reversal strength."""
+        ctx.alpha = alpha
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad):
+        """Return the negated, alpha-scaled gradient."""
+        return -ctx.alpha * grad, None
+
+
+class GradientReversal(nn.Module):
+    """Domain-adversarial gradient reversal layer (Ganin et al., DANN).
+
+    Features pass through unchanged, but the gradient flowing back from the domain classifier is negated and scaled by
+    `alpha`. Minimizing the domain loss therefore makes the domain classifier accurate while pushing the features it
+    reads toward domain invariance, which is the adversarial objective of the DANN framework.
+    """
+
+    def __init__(self, alpha=1.0):
+        """Initialize the layer.
+
+        Args:
+            alpha (float): Gradient reversal strength, ramped from 0 to its peak over a training run.
+        """
+        super().__init__()
+        self.alpha = alpha
+
+    def forward(self, x):
+        """Return x unchanged with reversed gradients.
+
+        Args:
+            x (torch.Tensor): Input features of shape (batch, channels).
+
+        Returns:
+            (torch.Tensor): The same tensor.
+        """
+        return _GradientReversal.apply(x, self.alpha)
+
+
+class DomainClassifier(nn.Module):
+    """DANN domain discriminator over the detection head's multi-scale features.
+
+    Each detection level is global-average-pooled, the pooled vectors are concatenated, and a two-layer perceptron
+    predicts which weather domain the image came from. The pooled vector passes through `GradientReversal` first, so
+    the backbone receives a domain-confusing gradient.
+    """
+
+    def __init__(self, ch, num_domains=4, hidden=256, p=0.1, alpha=1.0):
+        """Initialize the discriminator.
+
+        Args:
+            ch (list[int]): Channel count of each detection level, in feature-pyramid order.
+            num_domains (int): Number of domains to discriminate between.
+            hidden (int): Width of the hidden layer.
+            p (float): Dropout probability before the output layer.
+            alpha (float): Initial gradient reversal strength.
+        """
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.grl = GradientReversal(alpha)
+        self.head = nn.Sequential(
+            nn.Linear(sum(ch), hidden),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p),
+            nn.Linear(hidden, num_domains),
+        )
+
+    def forward(self, feats):
+        """Predict the domain logits of a batch from its multi-scale features.
+
+        Args:
+            feats (list[torch.Tensor]): Detection-level feature maps.
+
+        Returns:
+            (torch.Tensor): Domain logits of shape (batch, num_domains).
+        """
+        return self.head(self.grl(torch.cat([self.pool(f).flatten(1) for f in feats], 1)))

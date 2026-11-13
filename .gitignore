@@ -211,3 +211,9 @@ fuzz-models/
 
 
 /images
+
+# Local datasets and research runs
+datasets/
+
+/.freebuff
+/.venv

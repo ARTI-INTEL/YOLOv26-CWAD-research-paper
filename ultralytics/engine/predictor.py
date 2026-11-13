@@ -450,8 +450,6 @@ class BasePredictor:
             LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}{s}")
         self.run_callbacks("on_predict_end")
 
-    fuse_model = True  # fuse Conv+BN for speed; test-time adaptation keeps them separate to update BN statistics
-
     @smart_inference_mode(False)
     def setup_model(self, model, verbose: bool = True):
         """Initialize YOLO model with given parameters and set it to evaluation mode.
@@ -468,7 +466,7 @@ class BasePredictor:
             data=self.args.data,
             fp16=self.args.quantize == 16,
             channels_last=self.args.channels_last,
-            fuse=self.fuse_model,
+            fuse=True,
             verbose=verbose,
             end2end=self.args.nms is False,
         )
